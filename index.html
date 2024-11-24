@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>极简吉他调音器</title>
+    <!-- 禁用缩放 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
         /* 基础样式 */
         body {
@@ -19,7 +21,7 @@
             overflow: hidden;
         }
         h1 {
-            font-size: 36px; /* 固定字体大小 */
+            font-size: 36px;
             margin: 20px 0;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
@@ -66,7 +68,7 @@
             box-shadow: 0 0 10px rgba(255,255,255,0.7);
         }
         .note {
-            font-size: 48px; /* 固定字体大小 */
+            font-size: 48px;
             margin-top: 20px;
             transition: color 0.3s;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
@@ -90,7 +92,7 @@
             left: 50%;
             transform: translateX(-50%);
             box-shadow: 0 0 10px rgba(255,255,255,0.7);
-            pointer-events: none; /* 防止指针事件 */
+            pointer-events: none;
         }
         /* 灯的样式 */
         .light {
@@ -119,7 +121,7 @@
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 16px; /* 固定字体大小 */
+            font-size: 16px;
             opacity: 0;
             transition: opacity 0.3s;
             color: #ffffff;
@@ -189,7 +191,7 @@
             border: none;
             border-radius: 5px;
             color: #ffffff;
-            font-size: 18px; /* 固定字体大小 */
+            font-size: 18px;
             cursor: pointer;
             transition: background 0.3s;
             margin-bottom: 10px;
@@ -216,7 +218,7 @@
             backdrop-filter: blur(5px);
             color: #ffffff;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-            font-size: 18px; /* 固定字体大小 */
+            font-size: 18px;
             white-space: nowrap;
         }
         .tuning-item:hover {
@@ -245,7 +247,7 @@
             border: none;
             border-radius: 5px;
             color: #ffffff;
-            font-size: 18px; /* 固定字体大小 */
+            font-size: 18px;
             cursor: pointer;
             transition: background 0.3s;
             margin-top: 10px;
@@ -265,6 +267,30 @@
         .fade-out {
             opacity: 0;
             transition: opacity 1s ease-out;
+        }
+
+        /* 针对移动设备的样式 */
+        @media screen and (max-width: 600px) {
+            h1 {
+                font-size: 28px;
+            }
+            .note {
+                font-size: 36px;
+            }
+            .note-label {
+                font-size: 14px;
+            }
+            .save-tuning-btn,
+            .restore-default-btn,
+            .tuning-item {
+                font-size: 16px;
+            }
+            .tuner-container {
+                max-width: none;
+                max-height: none;
+                width: 90vw;
+                height: 90vw;
+            }
         }
     </style>
 </head>
@@ -290,7 +316,7 @@
         <div class="tuning-list" id="tuning-list"></div>
         <button class="restore-default-btn" id="restore-default-btn">恢复默认调音</button>
     </div>
-
+    
     <script>
         const noteDisplay = document.getElementById('note');
         const needle = document.getElementById('needle');
