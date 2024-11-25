@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>极简吉他调音器</title>
+    <title>TuneSphere 调音环</title>
     <!-- 设置视口，禁用缩放 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
@@ -21,9 +21,24 @@
             overflow: hidden;
         }
         h1 {
-            font-size: 36px; /* 固定字体大小 */
+            font-size: 36px;
             margin: 20px 0;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: transform 0.3s;
+            user-select: none;
+            /* 添加淡入淡出效果 */
+            opacity: 1;
+            transition: opacity 1s ease-in-out;
+        }
+        h1.fade-out {
+            opacity: 0;
+        }
+        h1.fade-in {
+            opacity: 1;
+        }
+        h1:hover {
+            transform: scale(1.05);
         }
         .tuner-container {
             position: relative;
@@ -44,6 +59,8 @@
             box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
             margin: 0 auto;
             cursor: pointer;
+            /* 添加旋转动画 */
+            transition: transform 1s ease-in-out;
         }
         .circle:hover {
             box-shadow: inset 0 0 30px rgba(255,255,255,0.5);
@@ -66,9 +83,12 @@
             transform: translateX(-50%) rotate(0deg);
             transition: transform 0.2s ease-out;
             box-shadow: 0 0 10px rgba(255,255,255,0.7);
+            cursor: pointer;
+            /* 防止指针事件冒泡 */
+            pointer-events: auto;
         }
         .note {
-            font-size: 48px; /* 固定字体大小 */
+            font-size: 48px;
             margin-top: 20px;
             transition: color 0.3s;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
@@ -119,36 +139,38 @@
         }
         .note-label {
             position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 16px; /* 固定字体大小 */
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, transform 0.3s;
             color: #ffffff;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
             white-space: nowrap;
+            pointer-events: none;
+        }
+        /* 左侧灯泡的音符标签 */
+        .left-label {
+            left: 110%;
+            text-align: left;
+        }
+        /* 右侧灯泡的音符标签 */
+        .right-label {
+            right: 110%;
+            text-align: right;
         }
         .light:hover .note-label {
             opacity: 1;
+            transform: translateY(-50%) scale(1.1);
         }
-        /* 根据灯泡位置调整音符标签的位置 */
-        .light[data-string="2"] .note-label,
-        .light[data-string="3"] .note-label {
-            bottom: -150%;
+        /* 音符标签的炫酷效果 */
+        .note-label {
+            animation: glow 1.5s infinite;
         }
-        .light[data-string="0"] .note-label,
-        .light[data-string="1"] .note-label,
-        .light[data-string="4"] .note-label,
-        .light[data-string="5"] .note-label {
-            top: -150%;
+        @keyframes glow {
+            0%, 100% { text-shadow: 0 0 5px rgba(255,255,255,0.5); }
+            50% { text-shadow: 0 0 10px rgba(255,255,255,1); }
         }
-        /* 灯的位置 */
-        .light[data-string="0"] { left: 20%; top: 80%; }
-        .light[data-string="1"] { left: 10%; top: 50%; }
-        .light[data-string="2"] { left: 20%; top: 20%; }
-        .light[data-string="3"] { left: 80%; top: 20%; }
-        .light[data-string="4"] { left: 90%; top: 50%; }
-        .light[data-string="5"] { left: 80%; top: 80%; }
         /* 圆盘颜色渐变 */
         .tuner-correct {
             background-color: rgba(0, 255, 0, 0.2);
@@ -191,7 +213,7 @@
             border: none;
             border-radius: 5px;
             color: #ffffff;
-            font-size: 18px; /* 固定字体大小 */
+            font-size: 18px;
             cursor: pointer;
             transition: background 0.3s;
             margin-bottom: 10px;
@@ -218,7 +240,7 @@
             backdrop-filter: blur(5px);
             color: #ffffff;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-            font-size: 18px; /* 固定字体大小 */
+            font-size: 18px;
             white-space: nowrap;
         }
         .tuning-item:hover {
@@ -247,7 +269,7 @@
             border: none;
             border-radius: 5px;
             color: #ffffff;
-            font-size: 18px; /* 固定字体大小 */
+            font-size: 18px;
             cursor: pointer;
             transition: background 0.3s;
             margin-top: 10px;
@@ -302,21 +324,24 @@
                 font-size: 14px;
             }
         }
+        /* 乐器切换动画 */
+        .instrument-transition {
+            animation: instrument-switch 1s forwards;
+        }
+        @keyframes instrument-switch {
+            0% { opacity: 0; transform: scale(0.8) rotate(-360deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
     </style>
 </head>
 <body>
-    <h1>吉他调音器</h1>
+    <h1 id="instrument-title">吉他调音器</h1>
     <div class="tuner-container" id="tuner-container">
         <div class="circle idle" id="circle">
             <div class="indicator"></div>
             <div class="needle" id="needle"></div>
             <!-- 灯的容器 -->
-            <div class="light" data-string="0" data-left="20%" data-top="80%"><div class="note-label"></div></div>
-            <div class="light" data-string="1" data-left="10%" data-top="50%"><div class="note-label"></div></div>
-            <div class="light" data-string="2" data-left="20%" data-top="20%"><div class="note-label"></div></div>
-            <div class="light" data-string="3" data-left="80%" data-top="20%"><div class="note-label"></div></div>
-            <div class="light" data-string="4" data-left="90%" data-top="50%"><div class="note-label"></div></div>
-            <div class="light" data-string="5" data-left="80%" data-top="80%"><div class="note-label"></div></div>
+            <!-- 灯泡将由 JavaScript 动态生成 -->
         </div>
     </div>
     <div class="note" id="note">请点击圆盘开始调音</div>
@@ -332,10 +357,10 @@
         const needle = document.getElementById('needle');
         const circle = document.getElementById('circle');
         const tunerContainer = document.getElementById('tuner-container');
-        const lights = circle.querySelectorAll('.light');
         const saveTuningButton = document.getElementById('save-tuning-btn');
         const tuningList = document.getElementById('tuning-list');
         const restoreDefaultButton = document.getElementById('restore-default-btn');
+        const instrumentTitle = document.getElementById('instrument-title');
 
         let isRunning = false;
         let audioContext = null; // 延迟创建AudioContext
@@ -344,30 +369,98 @@
         let sourceNode;
         let animationId;
 
-        // 默认标准调音
-        let defaultTuning = [
-            { note: 'E2', frequency: 82.41 },  // 第6弦
-            { note: 'A2', frequency: 110.00 }, // 第5弦
-            { note: 'D3', frequency: 146.83 }, // 第4弦
-            { note: 'G3', frequency: 196.00 }, // 第3弦
-            { note: 'B3', frequency: 246.94 }, // 第2弦
-            { note: 'E4', frequency: 329.63 }, // 第1弦
-        ];
+        // 乐器配置
+        const instruments = {
+            '吉他': {
+                defaultTuning: [
+                    { note: 'E2', frequency: 82.41 },
+                    { note: 'A2', frequency: 110.00 },
+                    { note: 'D3', frequency: 146.83 },
+                    { note: 'G3', frequency: 196.00 },
+                    { note: 'B3', frequency: 246.94 },
+                    { note: 'E4', frequency: 329.63 },
+                ],
+                stringPositions: [
+                    { left: '20%', top: '80%' },
+                    { left: '10%', top: '50%' },
+                    { left: '20%', top: '20%' },
+                    { left: '80%', top: '20%' },
+                    { left: '90%', top: '50%' },
+                    { left: '80%', top: '80%' },
+                ],
+            },
+            '小提琴': {
+                defaultTuning: [
+                    { note: 'G3', frequency: 196.00 },
+                    { note: 'D4', frequency: 293.66 },
+                    { note: 'A4', frequency: 440.00 },
+                    { note: 'E5', frequency: 659.25 },
+                ],
+                stringPositions: [
+                    { left: '20%', top: '80%' },
+                    { left: '20%', top: '20%' },
+                    { left: '80%', top: '20%' },
+                    { left: '80%', top: '80%' },
+                ],
+            },
+            '尤克里里': {
+                defaultTuning: [
+                    { note: 'G4', frequency: 392.00 },
+                    { note: 'C4', frequency: 261.63 },
+                    { note: 'E4', frequency: 329.63 },
+                    { note: 'A4', frequency: 440.00 },
+                ],
+                stringPositions: [
+                    { left: '20%', top: '80%' },
+                    { left: '20%', top: '20%' },
+                    { left: '80%', top: '20%' },
+                    { left: '80%', top: '80%' },
+                ],
+            },
+        };
+
+        // 从缓存中读取当前乐器
+        let currentInstrument = localStorage.getItem('currentInstrument') || '吉他';
+
+        let defaultTuning = JSON.parse(JSON.stringify(instruments[currentInstrument].defaultTuning));
         let notes = JSON.parse(JSON.stringify(defaultTuning));
-        let customTunings = JSON.parse(localStorage.getItem('customTunings')) || [];
+        let customTunings = JSON.parse(localStorage.getItem('customTunings')) || {};
+        if (!customTunings[currentInstrument]) customTunings[currentInstrument] = [];
         let currentTuningName = '默认调音';
+
+        let lights = [];
 
         // 初始化灯的音符标签和位置
         function initializeLights() {
-            lights.forEach((light, index) => {
-                const noteLabel = light.querySelector('.note-label');
-                noteLabel.textContent = notes[index].note;
+            // 清除之前的灯泡
+            circle.querySelectorAll('.light').forEach(light => light.remove());
+            lights = [];
+
+            const instrumentConfig = instruments[currentInstrument];
+            const positions = instrumentConfig.stringPositions;
+
+            notes.forEach((noteObj, index) => {
+                const light = document.createElement('div');
+                light.classList.add('light');
+                light.setAttribute('data-string', index);
+
+                const noteLabel = document.createElement('div');
+                noteLabel.classList.add('note-label');
+                noteLabel.textContent = noteObj.note;
+
+                // 判断灯泡的位置，添加对应的类
+                const leftPercentage = parseInt(positions[index].left);
+                if (leftPercentage < 50) {
+                    noteLabel.classList.add('left-label');
+                } else {
+                    noteLabel.classList.add('right-label');
+                }
+
+                light.appendChild(noteLabel);
 
                 // 设置灯泡的位置
-                const left = light.getAttribute('data-left');
-                const top = light.getAttribute('data-top');
-                light.style.left = left;
-                light.style.top = top;
+                light.style.left = positions[index].left;
+                light.style.top = positions[index].top;
 
                 // 悬停效果
                 light.addEventListener('mouseenter', () => {
@@ -382,6 +475,7 @@
                 let dragging = false;
                 light.addEventListener('mousedown', (e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     startY = e.clientY;
                     dragging = true;
                 });
@@ -404,6 +498,7 @@
                 // 触摸事件支持
                 light.addEventListener('touchstart', (e) => {
                     e.stopPropagation();
+                    e.preventDefault();
                     startY = e.touches[0].clientY;
                     dragging = true;
                 });
@@ -428,14 +523,24 @@
                     event.stopPropagation(); // 阻止事件冒泡
                     playNoteSound(notes[index].frequency, 0.75); // 0.75秒
                 });
+
+                circle.appendChild(light);
+                lights.push(light);
             });
         }
 
         initializeLights();
         renderCustomTunings();
 
+        // 设置初始乐器标题
+        instrumentTitle.textContent = currentInstrument + '调音器';
+
+        // 播放初始乐器音效
+        playSequenceNotes(0.25);
+
         // 点击圆盘开始或停止调音
         circle.addEventListener('click', (event) => {
+            if (isDraggingNeedle) return; // 防止拖动指针时触发
             if (event.target !== circle) {
                 // 点击的是circle的子元素，忽略
                 return;
@@ -489,12 +594,13 @@
         }
 
         saveTuningButton.addEventListener('click', () => {
-            let tuningName = '特调 ' + notes.map(n => n.note).join(' ');
+            let tuningName = currentInstrument + '特调 ' + notes.map(n => n.note).join(' ');
             let tuning = {
                 name: tuningName,
                 notes: JSON.parse(JSON.stringify(notes))
             };
-            customTunings.push(tuning);
+            if (!customTunings[currentInstrument]) customTunings[currentInstrument] = [];
+            customTunings[currentInstrument].push(tuning);
             localStorage.setItem('customTunings', JSON.stringify(customTunings));
             renderCustomTunings();
             saveTuningButton.style.display = 'none';
@@ -502,7 +608,7 @@
         });
 
         restoreDefaultButton.addEventListener('click', () => {
-            notes = JSON.parse(JSON.stringify(defaultTuning));
+            notes = JSON.parse(JSON.stringify(instruments[currentInstrument].defaultTuning));
             initializeLights();
             currentTuningName = '默认调音';
             restoreDefaultButton.style.display = 'none';
@@ -567,7 +673,7 @@
                         }
 
                         // 检查是否所有灯都亮起
-                        if (correctNotes.size === 6) {
+                        if (correctNotes.size === notes.length) {
                             circle.classList.add('all-correct');
                             showPerfect();
                             stopTuning(); // 自动停止调音
@@ -728,7 +834,7 @@
         }
 
         function checkCustomTuning() {
-            let isDefault = notes.every((n, i) => n.note === defaultTuning[i].note);
+            let isDefault = notes.every((n, i) => n.note === instruments[currentInstrument].defaultTuning[i].note);
             if (!isDefault) {
                 saveTuningButton.textContent = '保存特调 ' + notes.map(n => n.note).join(' ');
                 saveTuningButton.style.display = 'block';
@@ -741,7 +847,8 @@
 
         function renderCustomTunings() {
             tuningList.innerHTML = '';
-            customTunings.forEach((tuning, index) => {
+            if (!customTunings[currentInstrument]) customTunings[currentInstrument] = [];
+            customTunings[currentInstrument].forEach((tuning, index) => {
                 let tuningItem = document.createElement('div');
                 tuningItem.classList.add('tuning-item');
                 tuningItem.textContent = tuning.name;
@@ -759,7 +866,7 @@
                 deleteBtn.textContent = '×';
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    customTunings.splice(index, 1);
+                    customTunings[currentInstrument].splice(index, 1);
                     localStorage.setItem('customTunings', JSON.stringify(customTunings));
                     renderCustomTunings();
                 });
@@ -818,7 +925,7 @@
             };
         }
 
-        // 依次播放六个音符
+        // 依次播放音符
         function playSequenceNotes(noteDuration) {
             let index = 0;
 
@@ -842,15 +949,26 @@
         // 指针的mousedown事件
         needle.addEventListener('mousedown', (event) => {
             event.stopPropagation(); // 阻止事件冒泡
+            event.preventDefault(); // 阻止默认行为
             isDraggingNeedle = true;
-            initialMouseX = event.clientX || event.touches[0].clientX; // 兼容移动端
+            initialMouseX = event.clientX; // 兼容移动端
             // 获取当前指针的旋转角度
             const transform = needle.style.transform;
             const match = /rotate\((-?\d+\.?\d*)deg\)/.exec(transform);
             initialRotation = match ? parseFloat(match[1]) : 0;
             document.addEventListener('mousemove', onNeedleDrag);
             document.addEventListener('mouseup', stopNeedleDrag);
-            // 移动端事件
+        });
+
+        // 指针的touchstart事件
+        needle.addEventListener('touchstart', (event) => {
+            event.stopPropagation();
+            event.preventDefault();
+            isDraggingNeedle = true;
+            initialMouseX = event.touches[0].clientX;
+            const transform = needle.style.transform;
+            const match = /rotate\((-?\d+\.?\d*)deg\)/.exec(transform);
+            initialRotation = match ? parseFloat(match[1]) : 0;
             document.addEventListener('touchmove', onNeedleDrag);
             document.addEventListener('touchend', stopNeedleDrag);
         });
@@ -858,14 +976,15 @@
         // 指针的拖拽事件
         function onNeedleDrag(event) {
             if (!isDraggingNeedle) return;
+            event.preventDefault();
             let clientX = event.clientX || (event.touches && event.touches[0].clientX);
             const deltaX = clientX - initialMouseX;
             const rotation = initialRotation + deltaX * 0.2; // 调整灵敏度
             needle.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
         }
 
-        // 指针的mouseup事件
-        function stopNeedleDrag() {
+        // 指针的mouseup和touchend事件
+        function stopNeedleDrag(event) {
             if (isDraggingNeedle) {
                 isDraggingNeedle = false;
                 document.removeEventListener('mousemove', onNeedleDrag);
@@ -885,16 +1004,74 @@
         const noteFreqMap = {};
         (function generateNoteFreqMap() {
             const A4 = 440;
-            const notesArray = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-            for (let octave = 0; octave <= 8; octave++) {
-                for (let i = 0; i < notesArray.length; i++) {
-                    const noteName = notesArray[i] + octave;
-                    const keyNumber = i + (octave * 12);
-                    const frequency = A4 * Math.pow(2, (keyNumber - 57) / 12);
-                    noteFreqMap[noteName] = frequency;
-                }
+            const notesArray = ['C0', 'C#0', 'D0', 'D#0', 'E0', 'F0', 'F#0', 'G0', 'G#0', 'A0', 'A#0', 'B0',
+                'C1', 'C#1', 'D1', 'D#1', 'E1', 'F1', 'F#1', 'G1', 'G#1', 'A1', 'A#1', 'B1',
+                'C2', 'C#2', 'D2', 'D#2', 'E2', 'F2', 'F#2', 'G2', 'G#2', 'A2', 'A#2', 'B2',
+                'C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+                'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+                'C5', 'C#5', 'D5', 'D#5', 'E5', 'F5', 'F#5', 'G5', 'G#5', 'A5', 'A#5', 'B5',
+                'C6', 'C#6', 'D6', 'D#6', 'E6', 'F6', 'F#6', 'G6', 'G#6', 'A6', 'A#6', 'B6',
+                'C7', 'C#7', 'D7', 'D#7', 'E7', 'F7', 'F#7', 'G7', 'G#7', 'A7', 'A#7', 'B7',
+                'C8'
+            ];
+            for (let i = 0; i < notesArray.length; i++) {
+                const noteName = notesArray[i];
+                const keyNumber = i + 1;
+                const frequency = 27.5 * Math.pow(2, (keyNumber - 1) / 12);
+                noteFreqMap[noteName] = frequency;
             }
         })();
+
+        // 乐器切换功能
+        instrumentTitle.addEventListener('click', () => {
+            // 切换到下一个乐器
+            const instrumentNames = Object.keys(instruments);
+            let currentIndex = instrumentNames.indexOf(currentInstrument);
+            currentIndex = (currentIndex + 1) % instrumentNames.length;
+            currentInstrument = instrumentNames[currentIndex];
+
+            // 保存当前乐器到缓存
+            localStorage.setItem('currentInstrument', currentInstrument);
+
+            // 添加淡出效果
+            instrumentTitle.classList.add('fade-out');
+            setTimeout(() => {
+                // 更新标题
+                instrumentTitle.textContent = currentInstrument + '调音器';
+                // 移除淡出，添加淡入
+                instrumentTitle.classList.remove('fade-out');
+                instrumentTitle.classList.add('fade-in');
+                setTimeout(() => {
+                    instrumentTitle.classList.remove('fade-in');
+                }, 1000);
+            }, 1000);
+
+            // 更新默认调音和当前调音
+            defaultTuning = JSON.parse(JSON.stringify(instruments[currentInstrument].defaultTuning));
+            notes = JSON.parse(JSON.stringify(defaultTuning));
+
+            // 更新特调列表
+            if (!customTunings[currentInstrument]) customTunings[currentInstrument] = [];
+            renderCustomTunings();
+
+            // 重新初始化灯泡
+            initializeLights();
+
+            // 显示恢复默认和保存特调按钮
+            restoreDefaultButton.style.display = 'none';
+            saveTuningButton.style.display = 'none';
+
+            // 添加旋转动画
+            circle.classList.remove('idle');
+            circle.style.transform = 'rotate(360deg)';
+            setTimeout(() => {
+                circle.style.transform = 'rotate(0deg)';
+                circle.classList.add('idle');
+            }, 1000);
+
+            // 播放乐器音效
+            playSequenceNotes(0.25);
+        });
 
     </script>
 </body>
