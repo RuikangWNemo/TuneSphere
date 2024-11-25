@@ -424,11 +424,32 @@
 
         let defaultTuning = JSON.parse(JSON.stringify(instruments[currentInstrument].defaultTuning));
         let notes = JSON.parse(JSON.stringify(defaultTuning));
-        let customTunings = JSON.parse(localStorage.getItem('customTunings')) || {};
-        if (!customTunings[currentInstrument]) customTunings[currentInstrument] = [];
-        let currentTuningName = '默认调音';
 
-        let lights = [];
+        // 初始化 customTunings，添加错误处理
+        let customTunings = {};
+        try {
+            customTunings = JSON.parse(localStorage.getItem('customTunings')) || {};
+        } catch (e) {
+            console.error('解析 customTunings 时出错:', e);
+            customTunings = {};
+        }
+
+        // 如果数据是数组，重新转换为正确的对象结构
+        if (Array.isArray(customTunings)) {
+            console.warn('修复 customTunings 的结构...');
+            let fixedCustomTunings = {};
+            Object.keys(instruments).forEach(instrument => {
+                fixedCustomTunings[instrument] = [];
+            });
+            // 如果数组中有有效的调音数据，将其分配到对应的乐器
+            customTunings.forEach(tuning => {
+                if (tuning.name && tuning.notes) {
+                    fixedCustomTunings["吉他"].push(tuning); // 假设原始数据属于“吉他”
+                }
+            });
+            customTunings = fixedCustomTunings;
+            localStorage.setItem('customTunings', JSON.stringify(customTunings));
+        }
 
         // 初始化灯的音符标签和位置
         function initializeLights() {
@@ -521,7 +542,18 @@
                 // 点击播放对应音频
                 light.addEventListener('click', (event) => {
                     event.stopPropagation(); // 阻止事件冒泡
-                    playNoteSound(notes[index].frequency, 0.75); // 0.75秒
+                    if (!dragging) {
+                        playNoteSound(notes[index].frequency, 0.75); // 0.75秒
+                    }
+                });
+
+                // 添加 touchend 事件以支持移动设备
+                light.addEventListener('touchend', (event) => {
+                    event.stopPropagation();
+                    if (!dragging) {
+                        playNoteSound(notes[index].frequency, 0.75);
+                    }
+                    dragging = false; // 重置拖拽状态
                 });
 
                 circle.appendChild(light);
@@ -584,7 +616,7 @@
             if (animationId) {
                 cancelAnimationFrame(animationId);
             }
-            noteDisplay.textContent = '请点击圆盘开始调音';
+            noteDisplay.textContent = '请点击调音轮开始调音';
             noteDisplay.classList.remove('correct');
             needle.style.transform = 'translateX(-50%) rotate(0deg)';
             circle.classList.remove('tuner-correct', 'tuner-wrong', 'all-correct');
@@ -604,6 +636,7 @@
             localStorage.setItem('customTunings', JSON.stringify(customTunings));
             renderCustomTunings();
             saveTuningButton.style.display = 'none';
+            restoreDefaultButton.style.display = 'block'; // 确保显示恢复默认按钮
             playSequenceNotes(0.25); // 每个音符0.25秒
         });
 
@@ -835,13 +868,29 @@
 
         function checkCustomTuning() {
             let isDefault = notes.every((n, i) => n.note === instruments[currentInstrument].defaultTuning[i].note);
-            if (!isDefault) {
+
+            // 检查是否与已有的特调重复
+            let isDuplicate = false;
+            if (customTunings[currentInstrument]) {
+                for (let tuning of customTunings[currentInstrument]) {
+                    if (tuning.notes.length === notes.length && tuning.notes.every((n, i) => n.note === notes[i].note)) {
+                        isDuplicate = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!isDefault && !isDuplicate) {
                 saveTuningButton.textContent = '保存特调 ' + notes.map(n => n.note).join(' ');
                 saveTuningButton.style.display = 'block';
                 restoreDefaultButton.style.display = 'block';
             } else {
                 saveTuningButton.style.display = 'none';
-                restoreDefaultButton.style.display = 'none';
+                if (!isDefault) {
+                    restoreDefaultButton.style.display = 'block';
+                } else {
+                    restoreDefaultButton.style.display = 'none';
+                }
             }
         }
 
@@ -869,6 +918,16 @@
                     customTunings[currentInstrument].splice(index, 1);
                     localStorage.setItem('customTunings', JSON.stringify(customTunings));
                     renderCustomTunings();
+
+                    // 检查是否没有特调了
+                    if (customTunings[currentInstrument].length === 0) {
+                        // 重置为默认调音
+                        notes = JSON.parse(JSON.stringify(instruments[currentInstrument].defaultTuning));
+                        initializeLights();
+                        currentTuningName = '默认调音';
+                        restoreDefaultButton.style.display = 'none';
+                        saveTuningButton.style.display = 'none';
+                    }
                 });
                 tuningItem.appendChild(deleteBtn);
                 tuningList.appendChild(tuningItem);
