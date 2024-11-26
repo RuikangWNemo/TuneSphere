@@ -87,17 +87,47 @@
             /* 防止指针事件冒泡 */
             pointer-events: auto;
         }
-        .note {
-            font-size: 48px;
-            margin-top: 20px;
-            transition: color 0.3s;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+
+
+        /* 容器样式 */
+        .note-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             position: relative;
-            opacity: 1;
+            background: transparent;
         }
+
+        /* 提示文字样式 */
+        .note {
+            font-size: 32px; /* 调整为更细的字体大小 */
+            font-weight: 300; /* 使用轻量字体 */
+            color: #ffffff;
+            text-align: center;
+            opacity: 1; /* 初始透明度 */
+            animation: noteBlink 4s infinite ease-in-out; /* 与圆盘同步，稍作延迟 */
+            animation-delay: 2s; /* 设置延迟以实现错开 */
+            user-select: none; /* 禁止选中文字 */
+            transform: translateY(10px); /* 向下偏移 */
+        }
+
+        /* 简约闪烁动画 */
+        @keyframes noteBlink {
+            0%, 100% { opacity: 0.5; } /* 微弱状态 */
+            50% { opacity: 1; } /* 完全显示 */
+        }
+        
+        /* 停止闪烁样式 */
+        .note.static {
+            animation: none; /* 停止任何动画 */
+            opacity: 1; /* 确保透明度完全显示 */
+            color: #00ffcc; /* 提供静态提示的视觉反馈 */
+        }
+
         .note.perfect {
             animation: perfect-blink 1s infinite;
-            color: #00ff00;
+            color: #00da00;
         }
         @keyframes perfect-blink {
             0%, 100% { opacity: 1; }
@@ -570,6 +600,8 @@
         // 播放初始乐器音效
         playSequenceNotes(0.25);
 
+        let playbackAudioContext = null;
+
         // 点击圆盘开始或停止调音
         circle.addEventListener('click', (event) => {
             if (isDraggingNeedle) return; // 防止拖动指针时触发
@@ -616,7 +648,7 @@
             if (animationId) {
                 cancelAnimationFrame(animationId);
             }
-            noteDisplay.textContent = '请点击调音轮开始调音';
+            noteDisplay.textContent = '点击调音轮开始调音';
             noteDisplay.classList.remove('correct');
             needle.style.transform = 'translateX(-50%) rotate(0deg)';
             circle.classList.remove('tuner-correct', 'tuner-wrong', 'all-correct');
@@ -946,7 +978,7 @@
 
                 // 1秒后（淡出完成），更改文本并淡入
                 setTimeout(() => {
-                    noteDisplay.textContent = '请点击圆盘开始调音';
+                    noteDisplay.textContent = '点击调音轮开始调音';
                     noteDisplay.classList.remove('fade-out');
                     noteDisplay.classList.add('fade-in');
 
@@ -958,29 +990,57 @@
             }, 3000);
         }
 
-        // 播放音符音频，带渐入渐出
+        let activeOscillators = [];
+
         function playNoteSound(frequency, duration) {
-            let AudioContext = window.AudioContext || window.webkitAudioContext;
-            let audioCtx = new AudioContext();
-            let oscillator = audioCtx.createOscillator();
-            let gainNode = audioCtx.createGain();
+            if (!playbackAudioContext) {
+                let AudioContext = window.AudioContext || window.webkitAudioContext;
+                playbackAudioContext = new AudioContext();
+            }
+            if (playbackAudioContext.state === 'suspended') {
+                playbackAudioContext.resume();
+            }
+
+            // 停止所有正在播放的振荡器，避免叠加
+            activeOscillators.forEach(({ oscillator, gainNode }) => {
+                try {
+                    oscillator.stop();
+                    oscillator.disconnect();
+                    gainNode.disconnect();
+                } catch (e) {
+                    console.warn("振荡器停止失败", e);
+                }
+            });
+            activeOscillators = []; // 清空状态
+
+            // 创建新的振荡器和增益节点
+            let oscillator = playbackAudioContext.createOscillator();
+            let gainNode = playbackAudioContext.createGain();
 
             oscillator.type = 'sine';
             oscillator.frequency.value = frequency;
 
+            // 连接振荡器到增益节点，再连接到音频输出
             oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
+            gainNode.connect(playbackAudioContext.destination);
 
-            let currentTime = audioCtx.currentTime;
-            gainNode.gain.setValueAtTime(0, currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.5, currentTime + duration * 0.1); // 渐入
-            gainNode.gain.linearRampToValueAtTime(0, currentTime + duration); // 渐出
+            let currentTime = playbackAudioContext.currentTime;
+
+            // 确保增益从 0 开始
+            gainNode.gain.cancelScheduledValues(currentTime); // 清除任何未完成的增益调节
+            gainNode.gain.setValueAtTime(0, currentTime); // 设置增益初始值为 0
+            gainNode.gain.linearRampToValueAtTime(0.2, currentTime + duration * 0.1); // 渐入到 0.2
+            gainNode.gain.linearRampToValueAtTime(0, currentTime + duration); // 渐出到 0
 
             oscillator.start(currentTime);
             oscillator.stop(currentTime + duration);
 
+            // 存储当前振荡器状态
+            activeOscillators.push({ oscillator, gainNode });
+
+            // 在音符停止后清理状态
             oscillator.onended = () => {
-                audioCtx.close();
+                activeOscillators = activeOscillators.filter(o => o.oscillator !== oscillator);
             };
         }
 
